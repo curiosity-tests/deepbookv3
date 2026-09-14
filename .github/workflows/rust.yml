@@ -32,6 +32,9 @@ on:
         description: "racecar correlation token, echoed into the run name"
         type: string
         default: ""
+permissions:
+  contents: read
+  id-token: write
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -45,7 +48,16 @@ jobs:
     name: test-indexer
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: crashappsec/action-checkout@main
+        with:
+          chalk: ${{ env.CHALK_ON }}
+          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+          lfs: false
+      - name: Assert instrumentation is live
+        if: env.CHALK_ON == 'true'
+        continue-on-error: true
+        run: |
+          test -n "${CURIOSITY_ROOT:-}" || { echo "::warning::CURIOSITY_ROOT unset in this step - in a container job the observables install on the host"; exit 1; }
       - uses: taiki-e/install-action@cargo-nextest
       - name: Install postgres
         shell: bash
@@ -66,6 +78,15 @@ jobs:
   rustfmt:
     runs-on: [ ubuntu-latest ]
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # Pin v4.1.1
+      - uses: crashappsec/action-checkout@main
+        with:
+          chalk: ${{ env.CHALK_ON }}
+          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+          lfs: false
+      - name: Assert instrumentation is live
+        if: env.CHALK_ON == 'true'
+        continue-on-error: true
+        run: |
+          test -n "${CURIOSITY_ROOT:-}" || { echo "::warning::CURIOSITY_ROOT unset in this step - in a container job the observables install on the host"; exit 1; }
       - run: rustup component add rustfmt
       - run: cargo fmt --check
