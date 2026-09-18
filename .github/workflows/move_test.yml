@@ -3,14 +3,14 @@ name: Move Test CI
 on:
   pull_request:
     paths:
-      - ".github/workflows/**"
+    - ".github/workflows/**"
       # the parity guard's own source, so a PR that only edits the check still runs it
-      - ".github/scripts/**"
-      - "packages/**"
-      - "vendor/**"
+    - ".github/scripts/**"
+    - "packages/**"
+    - "vendor/**"
   push:
     branches:
-      - main
+    - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -24,62 +24,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
 
       # The legacy and upgraded Pyth surfaces must be edited together. Nothing in the
       # compiler ties them, so a parameter added to one side only ships a surface that
       # silently disagrees with itself.
-      - name: Check upgraded-twin parity
-        run: python3 .github/scripts/check_upgraded_parity.py
+    - name: Check upgraded-twin parity
+      run: python3 .github/scripts/check_upgraded_parity.py
 
   test-linux:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
 
-      - name: Install Sui CLI
-        run: |
-          curl -fsSL "https://github.com/MystenLabs/sui/releases/download/${SUI_VERSION}/sui-${SUI_VERSION}-ubuntu-x86_64.tgz" \
-            | sudo tar -xz -C /usr/local/bin
-          sui --version
+    - name: Install Sui CLI
+      run: |
+        curl -fsSL "https://github.com/MystenLabs/sui/releases/download/${SUI_VERSION}/sui-${SUI_VERSION}-ubuntu-x86_64.tgz" \
+          | sudo tar -xz -C /usr/local/bin
+        sui --version
 
-      - name: Run Move tests
-        run: |
-          for dir in packages/*; do
-            echo "Running sui move test in $dir"
-            sui move test --gas-limit 100000000000 --path "$dir"
-          done
+    - name: Run Move tests
+      run: |
+        for dir in packages/*; do
+          echo "Running sui move test in $dir"
+          sui move test --gas-limit 100000000000 --path "$dir"
+        done
 
-      - name: Build and test the Mainnet Predict dependency graph
-        run: |
-          for package in fixed_math account propbook predict deepbook_core_account sessions; do
-            sui move build --path "packages/$package" --build-env mainnet --warnings-are-errors
-            sui move test --path "packages/$package" --build-env mainnet --gas-limit 100000000000
-          done
+    - name: Build and test the Mainnet Predict dependency graph
+      run: |
+        for package in fixed_math account propbook predict deepbook_core_account sessions; do
+          sui move build --path "packages/$package" --build-env mainnet --warnings-are-errors
+          sui move test --path "packages/$package" --build-env mainnet --gas-limit 100000000000
+        done
 
-  test-macos:
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install Sui CLI
-        run: |
-          if [ "$(uname -m)" = "arm64" ]; then SUFFIX="macos-arm64"; else SUFFIX="macos-x86_64"; fi
-          curl -fsSL "https://github.com/MystenLabs/sui/releases/download/${SUI_VERSION}/sui-${SUI_VERSION}-${SUFFIX}.tgz" \
-            | tar -xz -C /usr/local/bin
-          sui --version
-
-      - name: Run Move tests
-        run: |
-          for dir in packages/*; do
-            echo "Running sui move test in $dir"
-            sui move test --gas-limit 100000000000 --path "$dir"
-          done
